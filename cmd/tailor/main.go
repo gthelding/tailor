@@ -3,9 +3,12 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/alecthomas/kong"
+	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/wimpysworld/tailor/internal/config"
+	"github.com/wimpysworld/tailor/internal/gh"
 	"github.com/wimpysworld/tailor/internal/measure"
 	"github.com/wimpysworld/tailor/internal/swatch"
 )
@@ -14,7 +17,57 @@ var version = "dev"
 
 var cli struct {
 	Version kong.VersionFlag `help:"Show version."`
+	Fit     FitCmd           `cmd:"" help:"Create a new project with default configuration."`
 	Measure MeasureCmd       `cmd:"" help:"Assess project health files and configuration alignment."`
+}
+
+// FitCmd creates a new project directory with a default .tailor/config.yml.
+type FitCmd struct {
+	Path        string `arg:"" help:"Project directory to create."`
+	License     string `help:"Licence identifier." default:"MIT"`
+	Description string `help:"Repository description."`
+}
+
+// Run executes the fit command.
+func (f *FitCmd) Run() error {
+	if err := gh.CheckAuth(); err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(f.Path, 0o755); err != nil {
+		return err
+	}
+
+	if config.Exists(f.Path) {
+		return fmt.Errorf(".tailor/config.yml already exists at %s. Edit .tailor/config.yml directly to change the swatch configuration.", f.Path)
+	}
+
+	cfg, err := config.DefaultConfig(f.License)
+	if err != nil {
+		return err
+	}
+
+	owner, name, ok, err := gh.RepoContext()
+	if err != nil {
+		return err
+	}
+
+	if ok {
+		client, err := api.DefaultRESTClient()
+		if err != nil {
+			return err
+		}
+		live, err := gh.ReadRepoSettings(client, owner, name)
+		if err != nil {
+			return err
+		}
+		config.MergeRepoSettings(cfg, live, f.Description)
+	} else if f.Description != "" {
+		cfg.Repository.Description = &f.Description
+	}
+
+	today := time.Now().Format("2006-01-02")
+	return config.Write(f.Path, cfg, today)
 }
 
 // MeasureCmd checks community health files and, when a config is present,
