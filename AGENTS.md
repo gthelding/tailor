@@ -1,0 +1,79 @@
+# AGENTS.md
+
+## Project overview
+
+Tailor is a Go CLI tool for managing project templates (swatches) across GitHub repositories. It fits new projects with community health files, dev tooling, and repository settings, then keeps them current via automated alterations.
+
+The authoritative specification is `docs/SPECIFICATION.md`. All implementation decisions must align with it.
+
+## Tech stack
+
+- **Language**: Go (1.24+)
+- **CLI parser**: [Kong](https://github.com/alecthomas/kong)
+- **External dependency**: `gh` (GitHub CLI) - sole external runtime dependency
+- **Swatch embedding**: Go `embed` directive (`swatches/` directory)
+- **Dev environment**: Nix flake with `gh`, `jq`, `just`, `yq`
+
+## Project structure
+
+```
+tailor/
+├── cmd/tailor/         # CLI entrypoint
+├── internal/           # Internal packages (config, swatch, gh wrappers)
+├── swatches/           # Embedded template files (16 swatches)
+├── docs/               # Specification
+└── AGENTS.md
+```
+
+## Build and test commands
+
+- Build: `go build -o tailor ./cmd/tailor`
+- Run tests: `go test ./...`
+- Run linter: `golangci-lint run`
+- Format: `gofmt -w .`
+- Enter dev shell: `nix develop` or `direnv allow`
+- Task runner: `just` (lists available recipes)
+
+## Code style
+
+- Follow standard Go conventions: `gofmt`, `go vet`
+- Package names are short, lowercase, single-word
+- Internal packages go in `internal/`; no `pkg/` directory
+- Error messages are lowercase, no trailing punctuation
+- Use `fmt.Errorf` with `%w` for error wrapping
+- Swatch-to-path mappings and default alteration modes are hardcoded in source, not configurable
+- Field names in the `repository` config section match GitHub REST API names exactly (snake_case)
+
+## Testing
+
+- Table-driven tests following Go conventions
+- Test files sit alongside the code they test (`*_test.go`)
+- Test swatch embedding and config parsing without network access
+- Commands that call `gh` should have their external calls abstracted behind interfaces for testability
+- `measure` is purely local and needs no mocking
+
+## Key implementation details
+
+- Swatches are embedded at build time via `//go:embed swatches/*`
+- Three commands: `fit` (bootstrap), `alter` (apply), `measure` (inspect)
+- `fit` and `alter` require `gh auth status` at startup; `measure` does not
+- `alter` execution order: repository settings, then licence, then swatches
+- MD5 comparison for `always` swatches; substituted swatches (`.github/FUNDING.yml`, `SECURITY.md`, `.github/ISSUE_TEMPLATE/config.yml`) skip MD5 and always overwrite
+- `--force-apply` overwrites everything except `LICENSE` and `.tailor/config.yml`
+- Token substitution: `{{GITHUB_USERNAME}}`, `{{ADVISORY_URL}}`, `{{SUPPORT_URL}}`
+- Licences fetched via `gh repo license view`, not embedded
+- `private_vulnerability_reporting_enabled` uses a separate API endpoint (`PUT`/`DELETE`)
+- Dry-run output uses fixed-width category labels (29 chars for `alter`, 16 chars for `measure`)
+
+## Commit guidelines
+
+- [Conventional Commits](https://www.conventionalcommits.org/) specification
+- Common prefixes: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`
+
+## Security considerations
+
+- Never store or log GitHub tokens; rely on `gh` for authentication
+- Validate swatch `source` values against the embedded set before writing files
+- Validate `repository` setting field names against the allowed list before API calls
+- Reject duplicate destinations in config before making any changes
+- Create intermediate directories safely; do not follow symlinks outside project root
