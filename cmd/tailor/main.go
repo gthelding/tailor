@@ -37,7 +37,7 @@ func (m *MeasureCmd) Run() error {
 		if err != nil {
 			return fmt.Errorf("loading config: %w", err)
 		}
-		diff = measure.CheckConfigDiff(cfg, swatch.DefaultSwatchSet())
+		diff = measure.CheckConfigDiff(cfg, swatch.All())
 	}
 
 	fmt.Print(measure.FormatOutput(health, diff, hasConfig))

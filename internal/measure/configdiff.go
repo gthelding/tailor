@@ -52,20 +52,16 @@ func CheckConfigDiff(cfg *config.Config, defaults []swatch.Swatch) []DiffResult 
 		}
 	}
 
-	// Destinations in config but not in default set.
+	// Destinations in config but not in default set, or in both but with
+	// differing alteration mode.
 	for _, s := range cfg.Swatches {
-		if _, found := defaultByDest[s.Destination]; !found {
+		def, found := defaultByDest[s.Destination]
+		if !found {
 			configOnly = append(configOnly, DiffResult{
 				Destination: s.Destination,
 				Category:    ConfigOnly,
 			})
-		}
-	}
-
-	// Destinations in both but with differing alteration mode.
-	for _, s := range cfg.Swatches {
-		def, found := defaultByDest[s.Destination]
-		if found && s.Alteration != string(def.DefaultAlteration) {
+		} else if s.Alteration != string(def.DefaultAlteration) {
 			modeDiffers = append(modeDiffers, DiffResult{
 				Destination: s.Destination,
 				Category:    ModeDiffers,

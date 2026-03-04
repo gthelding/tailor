@@ -83,13 +83,6 @@ func TestBySourceUnknownReturnsError(t *testing.T) {
 	}
 }
 
-func TestDefaultSwatchSetReturns16(t *testing.T) {
-	set := swatch.DefaultSwatchSet()
-	if len(set) != 16 {
-		t.Fatalf("DefaultSwatchSet() returned %d swatches, want 16", len(set))
-	}
-}
-
 func TestHealthSwatchesReturnsCorrectSubset(t *testing.T) {
 	health := swatch.HealthSwatches()
 
@@ -105,11 +98,11 @@ func TestHealthSwatchesReturnsCorrectSubset(t *testing.T) {
 	}
 }
 
-func TestDefaultSwatchSetIsACopy(t *testing.T) {
-	a := swatch.DefaultSwatchSet()
-	b := swatch.DefaultSwatchSet()
+func TestAllIsACopy(t *testing.T) {
+	a := swatch.All()
+	b := swatch.All()
 	a[0].Source = "modified"
 	if b[0].Source == "modified" {
-		t.Fatal("DefaultSwatchSet() returned a shared slice, not a copy")
+		t.Fatal("All() returned a shared slice, not a copy")
 	}
 }

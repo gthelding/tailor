@@ -70,11 +70,6 @@ func BySource(source string) (Swatch, error) {
 	return Swatch{}, fmt.Errorf("unknown swatch source: %q", source)
 }
 
-// DefaultSwatchSet returns the full default swatch set used by fit.
-func DefaultSwatchSet() []Swatch {
-	return All()
-}
-
 // HealthSwatches returns only the swatches categorised as health.
 func HealthSwatches() []Swatch {
 	var out []Swatch

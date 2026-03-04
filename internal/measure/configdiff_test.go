@@ -12,7 +12,7 @@ func TestCheckConfigDiffNotConfigured(t *testing.T) {
 	cfg := &config.Config{
 		Swatches: []config.SwatchEntry{},
 	}
-	defaults := swatch.DefaultSwatchSet()
+	defaults := swatch.All()
 
 	results := CheckConfigDiff(cfg, defaults)
 
@@ -75,7 +75,7 @@ func TestCheckConfigDiffModeDiffers(t *testing.T) {
 
 func TestCheckConfigDiffExactMatch(t *testing.T) {
 	// Config matches defaults exactly, so no diff results.
-	defaults := swatch.DefaultSwatchSet()
+	defaults := swatch.All()
 	entries := make([]config.SwatchEntry, len(defaults))
 	for i, s := range defaults {
 		entries[i] = config.SwatchEntry{

@@ -27,7 +27,7 @@ func buildDefaultConfigYAML() string {
 	var yaml string
 	yaml += "license: MIT\n"
 	yaml += "swatches:\n"
-	for _, s := range swatch.DefaultSwatchSet() {
+	for _, s := range swatch.All() {
 		yaml += "  - source: " + s.Source + "\n"
 		yaml += "    destination: " + s.Destination + "\n"
 		yaml += "    alteration: " + string(s.DefaultAlteration) + "\n"
@@ -122,7 +122,7 @@ func TestIntegrationConfigMatchesDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("config.Load: %v", err)
 	}
-	diff := CheckConfigDiff(cfg, swatch.DefaultSwatchSet())
+	diff := CheckConfigDiff(cfg, swatch.All())
 	hasConfig := true
 
 	got := FormatOutput(health, diff, hasConfig)
@@ -162,7 +162,7 @@ func TestIntegrationConfigWithAllDiffCategories(t *testing.T) {
 	// - changes SECURITY.md alteration from always to first-fit (mode-differs)
 	// All other defaults are present at their default modes.
 	yaml := "license: MIT\nswatches:\n"
-	for _, s := range swatch.DefaultSwatchSet() {
+	for _, s := range swatch.All() {
 		// Skip .github/dependabot.yml to produce not-configured.
 		if s.Destination == ".github/dependabot.yml" {
 			continue
@@ -189,7 +189,7 @@ func TestIntegrationConfigWithAllDiffCategories(t *testing.T) {
 	if err != nil {
 		t.Fatalf("config.Load: %v", err)
 	}
-	diff := CheckConfigDiff(cfg, swatch.DefaultSwatchSet())
+	diff := CheckConfigDiff(cfg, swatch.All())
 	hasConfig := true
 
 	got := FormatOutput(health, diff, hasConfig)
@@ -232,7 +232,7 @@ func TestIntegrationOutputOrderAndPadding(t *testing.T) {
 	// Config with all three diff categories, multiple entries per category
 	// to verify lexicographic sorting.
 	yaml := "license: MIT\nswatches:\n"
-	for _, s := range swatch.DefaultSwatchSet() {
+	for _, s := range swatch.All() {
 		// Omit two defaults to produce two not-configured entries.
 		if s.Destination == ".github/dependabot.yml" || s.Destination == ".envrc" {
 			continue
@@ -265,7 +265,7 @@ func TestIntegrationOutputOrderAndPadding(t *testing.T) {
 	if err != nil {
 		t.Fatalf("config.Load: %v", err)
 	}
-	diff := CheckConfigDiff(cfg, swatch.DefaultSwatchSet())
+	diff := CheckConfigDiff(cfg, swatch.All())
 	hasConfig := true
 
 	got := FormatOutput(health, diff, hasConfig)
