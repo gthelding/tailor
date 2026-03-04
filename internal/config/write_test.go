@@ -3,7 +3,10 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/wimpysworld/tailor/internal/ptr"
 	"github.com/wimpysworld/tailor/internal/swatch"
@@ -182,7 +185,7 @@ license: Apache-2.0
 
 repository:
   description: My project
-  homepage: https://example.com
+  homepage: "https://example.com"
   has_wiki: true
   has_discussions: false
   has_projects: false
@@ -283,5 +286,73 @@ swatches:
 
 	if string(got) != want {
 		t.Errorf("output mismatch with optional fields omitted\n--- got ---\n%s\n--- want ---\n%s", got, want)
+	}
+}
+
+func TestWriteYAMLSpecialCharactersQuoted(t *testing.T) {
+	desc := `My project: a tool for #things`
+	cfg := &Config{
+		License: "MIT",
+		Repository: &RepositorySettings{
+			Description:      &desc,
+			HasWiki:          ptr.Bool(false),
+			AllowSquashMerge: ptr.Bool(true),
+		},
+		Swatches: []SwatchEntry{
+			{Source: "justfile", Destination: "justfile", Alteration: swatch.FirstFit},
+		},
+	}
+
+	dir := t.TempDir()
+	if err := Write(dir, cfg, "2026-03-04"); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+
+	got, err := os.ReadFile(filepath.Join(dir, ".tailor", "config.yml"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+
+	// The output must be valid YAML that round-trips through yaml.Unmarshal.
+	var parsed Config
+	if err := yaml.Unmarshal(got, &parsed); err != nil {
+		t.Fatalf("output is not valid YAML: %v\n--- output ---\n%s", err, got)
+	}
+
+	if parsed.Repository == nil || parsed.Repository.Description == nil {
+		t.Fatal("parsed Repository.Description is nil")
+	}
+	if *parsed.Repository.Description != desc {
+		t.Errorf("round-tripped Description = %q, want %q", *parsed.Repository.Description, desc)
+	}
+}
+
+func TestWriteNilRepositoryOmitted(t *testing.T) {
+	cfg := &Config{
+		License: "MIT",
+		Swatches: []SwatchEntry{
+			{Source: "justfile", Destination: "justfile", Alteration: swatch.FirstFit},
+		},
+	}
+
+	dir := t.TempDir()
+	if err := Write(dir, cfg, "2026-03-04"); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+
+	got, err := os.ReadFile(filepath.Join(dir, ".tailor", "config.yml"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+
+	output := string(got)
+	if strings.Contains(output, "repository:") {
+		t.Errorf("output contains 'repository:' when Repository is nil:\n%s", output)
+	}
+
+	// Must still be valid YAML.
+	var parsed Config
+	if err := yaml.Unmarshal(got, &parsed); err != nil {
+		t.Fatalf("output is not valid YAML: %v\n--- output ---\n%s", err, got)
 	}
 }

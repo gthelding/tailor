@@ -60,6 +60,9 @@ func (f *FitCmd) Run() error {
 		}
 		config.MergeRepoSettings(cfg, live, f.Description)
 	} else if f.Description != "" {
+		if cfg.Repository == nil {
+			cfg.Repository = &config.RepositorySettings{}
+		}
 		cfg.Repository.Description = &f.Description
 	}
 

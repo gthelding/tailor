@@ -2,6 +2,7 @@ package config
 
 import (
 	"io/fs"
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -247,7 +248,6 @@ func TestDefaultConfigLicenseValues(t *testing.T) {
 		{name: "MIT", license: "MIT"},
 		{name: "Apache-2.0", license: "Apache-2.0"},
 		{name: "none", license: "none"},
-		{name: "empty", license: ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -259,5 +259,15 @@ func TestDefaultConfigLicenseValues(t *testing.T) {
 				t.Errorf("License = %q, want %q", cfg.License, tt.license)
 			}
 		})
+	}
+}
+
+func TestDefaultConfigEmptyLicenseError(t *testing.T) {
+	_, err := DefaultConfig("")
+	if err == nil {
+		t.Fatal("DefaultConfig(\"\") expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "license must not be empty") {
+		t.Errorf("error = %q, want it to mention license must not be empty", err.Error())
 	}
 }

@@ -136,6 +136,41 @@ func TestExistsFalseForDirectory(t *testing.T) {
 	}
 }
 
+func TestLoadAbsentLicense(t *testing.T) {
+	dir := t.TempDir()
+	testutil.WriteConfig(t, dir, `swatches:
+  - source: justfile
+    destination: justfile
+    alteration: always
+`)
+
+	cfg, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+	if cfg.License != "" {
+		t.Errorf("License = %q, want empty string for absent key", cfg.License)
+	}
+}
+
+func TestLoadEmptyLicense(t *testing.T) {
+	dir := t.TempDir()
+	testutil.WriteConfig(t, dir, `license: ""
+swatches:
+  - source: justfile
+    destination: justfile
+    alteration: always
+`)
+
+	cfg, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+	if cfg.License != "" {
+		t.Errorf("License = %q, want empty string", cfg.License)
+	}
+}
+
 func TestLoadEmptySwatchesList(t *testing.T) {
 	dir := t.TempDir()
 	testutil.WriteConfig(t, dir, `license: MIT

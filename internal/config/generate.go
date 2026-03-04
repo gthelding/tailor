@@ -24,6 +24,9 @@ func DefaultConfig(license string) (*Config, error) {
 	}
 
 	cfg.License = license
+	if cfg.License == "" {
+		return nil, fmt.Errorf("license must not be empty")
+	}
 	return cfg, nil
 }
 

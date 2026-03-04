@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 )
 
@@ -15,6 +16,17 @@ var templateFuncs = template.FuncMap{
 			return ""
 		}
 		return *p
+	},
+	"yamlString": func(p *string) string {
+		if p == nil {
+			return "\"\""
+		}
+		v := *p
+		const yamlSpecial = ":{}[]#&*!|>'\"%@`\n"
+		if strings.ContainsAny(v, yamlSpecial) || v != strings.TrimSpace(v) || v == "" {
+			return fmt.Sprintf("%q", v)
+		}
+		return v
 	},
 	"derefBool": func(p *bool) string {
 		if p == nil {
@@ -44,12 +56,14 @@ var configTemplate = template.Must(template.New("config").Funcs(templateFuncs).P
 	`# Initially fitted by tailor on {{ .Date }}
 license: {{ .License }}
 
+{{- if .Repository }}
+
 repository:
 {{- if set .Repository.Description }}
-  description: {{ deref .Repository.Description }}
+  description: {{ yamlString .Repository.Description }}
 {{- end }}
 {{- if set .Repository.Homepage }}
-  homepage: {{ deref .Repository.Homepage }}
+  homepage: {{ yamlString .Repository.Homepage }}
 {{- end }}
 {{- if set .Repository.HasWiki }}
   has_wiki: {{ derefBool .Repository.HasWiki }}
@@ -73,16 +87,16 @@ repository:
   allow_rebase_merge: {{ derefBool .Repository.AllowRebaseMerge }}
 {{- end }}
 {{- if set .Repository.SquashMergeCommitTitle }}
-  squash_merge_commit_title: {{ deref .Repository.SquashMergeCommitTitle }}
+  squash_merge_commit_title: {{ yamlString .Repository.SquashMergeCommitTitle }}
 {{- end }}
 {{- if set .Repository.SquashMergeCommitMessage }}
-  squash_merge_commit_message: {{ deref .Repository.SquashMergeCommitMessage }}
+  squash_merge_commit_message: {{ yamlString .Repository.SquashMergeCommitMessage }}
 {{- end }}
 {{- if set .Repository.MergeCommitTitle }}
-  merge_commit_title: {{ deref .Repository.MergeCommitTitle }}
+  merge_commit_title: {{ yamlString .Repository.MergeCommitTitle }}
 {{- end }}
 {{- if set .Repository.MergeCommitMessage }}
-  merge_commit_message: {{ deref .Repository.MergeCommitMessage }}
+  merge_commit_message: {{ yamlString .Repository.MergeCommitMessage }}
 {{- end }}
 {{- if set .Repository.DeleteBranchOnMerge }}
   delete_branch_on_merge: {{ derefBool .Repository.DeleteBranchOnMerge }}
@@ -98,6 +112,7 @@ repository:
 {{- end }}
 {{- if set .Repository.PrivateVulnerabilityReportEnabled }}
   private_vulnerability_reporting_enabled: {{ derefBool .Repository.PrivateVulnerabilityReportEnabled }}
+{{- end }}
 {{- end }}
 
 swatches:
