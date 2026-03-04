@@ -1,6 +1,9 @@
 package swatch
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 // Category classifies a swatch as either a community health file or a
 // development tooling file.
@@ -68,6 +71,17 @@ func BySource(source string) (Swatch, error) {
 		}
 	}
 	return Swatch{}, fmt.Errorf("unknown swatch source: %q", source)
+}
+
+// SourceNames returns the source names of all registered swatches, sorted
+// lexicographically.
+func SourceNames() []string {
+	names := make([]string, len(registry))
+	for i, s := range registry {
+		names[i] = s.Source
+	}
+	sort.Strings(names)
+	return names
 }
 
 // HealthSwatches returns only the swatches categorised as health.

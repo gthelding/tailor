@@ -30,6 +30,10 @@ type RepositorySettings struct {
 	AllowAutoMerge                     *bool   `yaml:"allow_auto_merge,omitempty"`
 	WebCommitSignoffRequired           *bool   `yaml:"web_commit_signoff_required,omitempty"`
 	PrivateVulnerabilityReportEnabled  *bool   `yaml:"private_vulnerability_reporting_enabled,omitempty"`
+
+	// Extra captures any YAML keys not mapped to struct fields above.
+	// ValidateRepoSettings uses this to reject unrecognised settings.
+	Extra map[string]interface{} `yaml:",inline"`
 }
 
 // SwatchEntry describes a single swatch mapping in the config file.

@@ -7,6 +7,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/wimpysworld/tailor/internal/alter"
 	"github.com/wimpysworld/tailor/internal/config"
 	"github.com/wimpysworld/tailor/internal/gh"
 	"github.com/wimpysworld/tailor/internal/measure"
@@ -19,6 +20,7 @@ var cli struct {
 	Version kong.VersionFlag `help:"Show version."`
 	Fit     FitCmd           `cmd:"" help:"Create a new project with default configuration."`
 	Measure MeasureCmd       `cmd:"" help:"Assess project health files and configuration alignment."`
+	Alter   AlterCmd         `cmd:"" help:"Apply swatch templates to the current project."`
 }
 
 // FitCmd creates a new project directory with a default .tailor/config.yml.
@@ -73,6 +75,38 @@ func (f *FitCmd) Run() error {
 
 	fmt.Printf("Fitted %s with .tailor/config.yml\n", f.Path)
 	return nil
+}
+
+// AlterCmd applies swatch templates to the current project.
+type AlterCmd struct {
+	Apply      bool `help:"Apply changes." xor:"mode"`
+	ForceApply bool `help:"Apply and overwrite regardless of mode or existence." name:"force-apply" xor:"mode"`
+}
+
+// Run executes the alter command.
+func (a *AlterCmd) Run() error {
+	if err := gh.CheckAuth(); err != nil {
+		return err
+	}
+
+	dir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("getting working directory: %w", err)
+	}
+
+	cfg, err := config.Load(dir)
+	if err != nil {
+		return fmt.Errorf(".tailor/config.yml is missing or malformed. Run 'tailor fit <path>' to create a valid configuration, or edit .tailor/config.yml directly to correct it")
+	}
+
+	mode := alter.DryRun
+	if a.ForceApply {
+		mode = alter.ForceApply
+	} else if a.Apply {
+		mode = alter.Apply
+	}
+
+	return alter.Run(cfg, dir, mode)
 }
 
 // MeasureCmd checks community health files and, when a config is present,

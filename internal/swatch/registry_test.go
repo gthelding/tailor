@@ -98,6 +98,37 @@ func TestHealthSwatchesReturnsCorrectSubset(t *testing.T) {
 	}
 }
 
+func TestSourceNamesReturnsSortedList(t *testing.T) {
+	names := swatch.SourceNames()
+	if len(names) != 16 {
+		t.Fatalf("SourceNames() returned %d names, want 16", len(names))
+	}
+	for i := 1; i < len(names); i++ {
+		if names[i] < names[i-1] {
+			t.Fatalf("SourceNames() not sorted: %q comes after %q", names[i], names[i-1])
+		}
+	}
+}
+
+func TestSourceNamesContainsKnownEntries(t *testing.T) {
+	names := swatch.SourceNames()
+	want := map[string]bool{
+		".gitignore": false,
+		"justfile":   false,
+		"SECURITY.md": false,
+	}
+	for _, n := range names {
+		if _, ok := want[n]; ok {
+			want[n] = true
+		}
+	}
+	for name, found := range want {
+		if !found {
+			t.Errorf("SourceNames() missing %q", name)
+		}
+	}
+}
+
 func TestAllIsACopy(t *testing.T) {
 	a := swatch.All()
 	b := swatch.All()
