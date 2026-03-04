@@ -6,7 +6,7 @@ Tailor is a Go CLI tool for managing project templates across GitHub repositorie
 
 ## Prerequisites
 
-Tailor requires the [GitHub CLI](https://cli.github.com/) (`gh`) to be installed and authenticated. The `fit` and `alter` commands check `gh auth status` at startup and exit with an error if `gh` is not available or not authenticated. Run `gh auth login` to authenticate before using tailor.
+Tailor requires the [GitHub CLI](https://cli.github.com/) (`gh`) to be installed and authenticated. The `fit` and `alter` commands verify that a valid authentication token exists at startup and exit with an error if no token is available. Run `gh auth login` to authenticate before using tailor.
 
 `measure` is exempt from this requirement - it performs purely local file inspection and needs no network access or authentication.
 
@@ -47,9 +47,9 @@ Tailor requires the [GitHub CLI](https://cli.github.com/) (`gh`) to be installed
 | `.github/workflows/tailor.yml` | `.github/workflows/tailor.yml` |
 | `.tailor/config.yml` | `.tailor/config.yml` |
 
-Swatch-to-path mappings are hardcoded in the source. Licences are not swatches - they are fetched via `gh repo license view` at `alter` time and written to `LICENSE`.
+Swatch-to-path mappings are hardcoded in the source. Licences are not swatches - they are fetched via the GitHub REST API (`GET /licenses/{id}`) at `alter` time and written to `LICENSE`.
 
-**Repository Settings**: Tailor can manage GitHub repository settings declaratively via the `repository` section in `config.yml`. Field names match the GitHub REST API field names exactly (snake_case). Settings are applied via `gh api --method PATCH repos/{owner}/{repo}` as a single API call. Repository settings are always applied idempotently on every `alter --apply` run - there is no `first-fit` concept for API settings. If the `repository` section is absent from `config.yml`, repository settings are skipped entirely.
+**Repository Settings**: Tailor can manage GitHub repository settings declaratively via the `repository` section in `config.yml`. Field names match the GitHub REST API field names exactly (snake_case). Settings are applied via `PATCH /repos/{owner}/{repo}` as a single API call. Repository settings are always applied idempotently on every `alter --apply` run - there is no `first-fit` concept for API settings. If the `repository` section is absent from `config.yml`, repository settings are skipped entirely.
 
 Supported repository settings:
 
@@ -159,13 +159,13 @@ The default swatch set embedded in the binary is:
 
 A `license` key is included in `config.yml` by default (`license: MIT`). Use `--license=<id>` to select a different licence or `--license=none` to opt out entirely.
 
-`--license=<id>` records the licence identifier in `config.yml`. Defaults to `MIT` if not specified. `--license=none` records `license: none`, opting out of licence creation. The identifier is passed to `gh repo license view` at `alter` time; any licence supported by the GitHub API is valid. `fit` does not validate the identifier - validation is deferred to `alter`.
+`--license=<id>` records the licence identifier in `config.yml`. Defaults to `MIT` if not specified. `--license=none` records `license: none`, opting out of licence creation. The identifier is used to fetch licence text via the GitHub REST API (`GET /licenses/{id}`) at `alter` time; any licence supported by the GitHub API is valid. `fit` does not validate the identifier - validation is deferred to `alter`.
 
 `--description=<text>` sets the `description` field in the `repository` section of `config.yml`, overriding any value from GitHub. `fit` does not apply the description - it is applied at `alter` time.
 
-**Repository settings resolution at `fit` time**: `fit` detects repository context by running `gh repo view --json owner,name` in `<path>`. If the command succeeds, the project has a GitHub remote. If it fails, no repository context exists. Tailor does not invoke `git` directly - repository context detection relies entirely on `gh`.
+**Repository settings resolution at `fit` time**: `fit` detects repository context by querying GitHub remotes in `<path>`. If a GitHub remote exists, the project has repository context. If no remote is found, no repository context exists. Repository context detection reads git remotes (via `go-gh`), so `git` must be present when a GitHub remote exists - which is always the case in practice, since the remote implies a git repository.
 
-When repository context exists, `fit` queries the live repository configuration via `gh api repos/{owner}/{repo}` and `gh api repos/{owner}/{repo}/private-vulnerability-reporting` to populate the `repository` section with the project's current settings. This ensures that enabling tailor on an existing project does not inadvertently change features that are already configured (e.g. disabling wiki or discussions that are currently enabled). The `--description` flag takes precedence over the value from GitHub. `description` and `homepage` are omitted if empty. When no repository context exists (e.g. a brand-new project with no remote), the built-in defaults from the embedded swatch are used.
+When repository context exists, `fit` queries the live repository configuration via `GET /repos/{owner}/{repo}` and `GET /repos/{owner}/{repo}/private-vulnerability-reporting` to populate the `repository` section with the project's current settings. This ensures that enabling tailor on an existing project does not inadvertently change features that are already configured (e.g. disabling wiki or discussions that are currently enabled). The `--description` flag takes precedence over the value from GitHub. `description` and `homepage` are omitted if empty. When no repository context exists (e.g. a brand-new project with no remote), the built-in defaults from the embedded swatch are used.
 
 ```bash
 # Default licence (MIT)
@@ -191,7 +191,7 @@ Generates:
 
 Applies swatch alterations to the local project.
 
-`alter` checks `gh auth status` at startup and exits with an error if `gh` is not available or not authenticated. It then reads `.tailor/config.yml` in the current working directory. No upward traversal is performed.
+`alter` verifies that a valid authentication token exists at startup and exits with an error if no token is available. It then reads `.tailor/config.yml` in the current working directory. No upward traversal is performed.
 
 ```bash
 tailor alter              # Dry-run by default
@@ -201,13 +201,13 @@ tailor alter --force-apply  # Apply and overwrite regardless of mode or existenc
 
 Behaviour:
 - If `.tailor/config.yml` is missing or malformed, exits immediately with the error described in Error Handling.
-- For repository settings: if a `repository` section is present in `config.yml`, reads the current repository settings via `gh api repos/{owner}/{repo}`, compares each declared field against the live value, and on `--apply` sends a single `gh api --method PATCH repos/{owner}/{repo}` call with all declared fields. Repository settings are applied before licences and swatches. If no GitHub repository context exists (no remote), repository settings are skipped with a warning. `--force-apply` has no special effect on repository settings - they are always applied declaratively.
+- For repository settings: if a `repository` section is present in `config.yml`, reads the current repository settings via `GET /repos/{owner}/{repo}`, compares each declared field against the live value, and on `--apply` sends a single `PATCH /repos/{owner}/{repo}` call with all declared fields. Repository settings are applied before licences and swatches. If no GitHub repository context exists (no remote), repository settings are skipped with a warning. `--force-apply` has no special effect on repository settings - they are always applied declaratively.
 - For `always` swatches: compares the MD5 of the embedded swatch content against the on-disk file; overwrites if they differ. MD5 comparison applies only to `always` swatches. For any `always` swatch whose embedded content contains substitution tokens (`{{GITHUB_USERNAME}}`, `{{ADVISORY_URL}}`, or `{{SUPPORT_URL}}`), the MD5 comparison is skipped and the swatch is always overwritten on `alter --apply`. This is because the on-disk file contains the resolved value while the embedded template contains the raw token, so they will always differ. The set of substituted swatches is determined by an explicit list in code: `.github/FUNDING.yml`, `SECURITY.md`, and `.github/ISSUE_TEMPLATE/config.yml`. If a user changes one of these swatches from `first-fit` to `always` in their config, the same skip-and-overwrite rule applies.
 - For `first-fit` swatches: copies only if the destination file does not exist; never overwrites. If the destination exists, the swatch is skipped entirely - no MD5 comparison is performed.
-- For licences: if `config.yml` contains a `license` key with a value other than `none`, and no `LICENSE` file exists on disk, fetches the licence text via `gh repo license view <id>` and writes it to `LICENSE`. The text is written verbatim as returned by GitHub - no token substitution is performed. Always treated as `first-fit`; the on-disk `LICENSE` file is never overwritten. If `gh repo license view` fails (e.g. unrecognised licence identifier), `alter` exits with the error from `gh`.
-- For `.github/FUNDING.yml`: substitutes `{{GITHUB_USERNAME}}` before writing. `{{GITHUB_USERNAME}}` is resolved at `alter` time from `gh api user --jq .login`.
-- For `SECURITY.md`: substitutes `{{ADVISORY_URL}}` before writing. `{{ADVISORY_URL}}` is constructed at `alter` time as `https://github.com/<owner>/<name>/security/advisories/new` from `gh repo view --json owner,name`. If no GitHub repository context exists (e.g. a brand-new project with no remote), `{{ADVISORY_URL}}` is left unsubstituted in the written file. The unsubstituted token is intentionally detectable by a future `measure` run; `alter` will resolve and substitute it on a subsequent run once the repository has a remote.
-- For `.github/ISSUE_TEMPLATE/config.yml`: substitutes `{{SUPPORT_URL}}` before writing. `{{SUPPORT_URL}}` is constructed at `alter` time as `https://github.com/<owner>/<name>/blob/HEAD/SUPPORT.md` from `gh repo view --json owner,name`. If no GitHub repository context exists, `{{SUPPORT_URL}}` is left unsubstituted in the written file.
+- For licences: if `config.yml` contains a `license` key with a value other than `none`, and no `LICENSE` file exists on disk, fetches the licence text via the GitHub REST API (`GET /licenses/{id}`) and writes it to `LICENSE`. The text is written verbatim as returned by GitHub - no token substitution is performed. Always treated as `first-fit`; the on-disk `LICENSE` file is never overwritten. If the licence fetch fails (e.g. unrecognised licence identifier), `alter` exits with the API error.
+- For `.github/FUNDING.yml`: substitutes `{{GITHUB_USERNAME}}` before writing. `{{GITHUB_USERNAME}}` is resolved at `alter` time from `GET /user`.
+- For `SECURITY.md`: substitutes `{{ADVISORY_URL}}` before writing. `{{ADVISORY_URL}}` is constructed at `alter` time as `https://github.com/<owner>/<name>/security/advisories/new` from the repository context (owner/name). If no GitHub repository context exists (e.g. a brand-new project with no remote), `{{ADVISORY_URL}}` is left unsubstituted in the written file. The unsubstituted token is intentionally detectable by a future `measure` run; `alter` will resolve and substitute it on a subsequent run once the repository has a remote.
+- For `.github/ISSUE_TEMPLATE/config.yml`: substitutes `{{SUPPORT_URL}}` before writing. `{{SUPPORT_URL}}` is constructed at `alter` time as `https://github.com/<owner>/<name>/blob/HEAD/SUPPORT.md` from the repository context (owner/name). If no GitHub repository context exists, `{{SUPPORT_URL}}` is left unsubstituted in the written file.
 - With `--force-apply`: implies `--apply`; always writes to disk and is never a dry-run. Overwrites regardless of mode or existence, including `first-fit` swatches - `--force-apply` will overwrite a `first-fit` swatch file even if it exists and has been locally modified. Use with care. The licence file and `.tailor/config.yml` are exempt from `--force-apply` and are never overwritten regardless - the licence because it is fetched content not an embedded swatch, and `.tailor/config.yml` because overwriting it would destroy the project's configuration. When `--force-apply` writes a substituted swatch (e.g. `.github/FUNDING.yml`, `SECURITY.md`, `.github/ISSUE_TEMPLATE/config.yml`), the full token resolution pipeline runs and fresh values are substituted before writing.
 - If no `license` key is present in `config.yml` (or its value is `none`) and no `LICENSE` file exists in the project root, emits a warning: "No licence file found and no licence configured. Add `license: MIT` (or another identifier) to `.tailor/config.yml` and run `tailor alter --apply`." Warning only; does not block execution.
 - Creates intermediate directories as needed before writing any swatch whose destination path requires directories that do not yet exist.
@@ -296,7 +296,7 @@ The `present`/`missing` check covers health swatches only. The config-diff check
 
 **Unrecognised swatch `source` in `config.yml`**: if `alter` encounters a `source` value that does not match any embedded swatch, it exits with an error identifying the unrecognised name and listing all valid swatch source names embedded in the binary.
 
-**Licence fetch failed**: if `gh repo license view <id>` exits non-zero during `alter`, tailor exits with the error from `gh` identifying the unrecognised licence identifier.
+**Licence fetch failed**: if `GET /licenses/{id}` returns an error during `alter` (e.g. unrecognised licence identifier), tailor exits with the API error.
 
 **Destination path not writable**: tailor exits with an error showing the full path that could not be written.
 
@@ -306,19 +306,19 @@ The `present`/`missing` check covers health swatches only. The config-diff check
 
 **Duplicate destination in `config.yml`**: if `alter` detects that two or more swatches share a destination, it exits with an error identifying the conflicting swatches before making any changes.
 
-**`gh` not authenticated**: if `gh auth status` fails, `fit` and `alter` exit with: "tailor requires an authenticated GitHub CLI. Run `gh auth login` to authenticate."
+**`gh` not authenticated**: if no valid authentication token can be resolved for `github.com`, `fit` and `alter` exit with: "tailor requires an authenticated GitHub CLI. Run `gh auth login` to authenticate."
 
-**`{{GITHUB_USERNAME}}` resolution failed**: `{{GITHUB_USERNAME}}` is resolved via `gh api user --jq .login`. If this call fails (e.g. rate limits, network issues), `alter` exits with the error from `gh`. Unlike repo-context tokens, `{{GITHUB_USERNAME}}` depends on the authenticated user, not the repository, so it cannot be deferred.
+**`{{GITHUB_USERNAME}}` resolution failed**: `{{GITHUB_USERNAME}}` is resolved via the GitHub REST API (`GET /user`). If this call fails (e.g. rate limits, network issues), `alter` exits with the API error. Unlike repo-context tokens, `{{GITHUB_USERNAME}}` depends on the authenticated user, not the repository, so it cannot be deferred.
 
-**Repo-context tokens unresolved**: `{{ADVISORY_URL}}` and `{{SUPPORT_URL}}` require a GitHub repository context (`gh repo view`). If the project has no GitHub remote (e.g. a brand-new project not yet pushed), these tokens are left unsubstituted silently. For `always` swatches (e.g. `SECURITY.md`), `alter` will resolve and substitute them on a subsequent run once the repository has a remote. For `first-fit` swatches (e.g. `.github/ISSUE_TEMPLATE/config.yml`), delete the file and re-run `alter --apply`, or use `--force-apply`.
+**Repo-context tokens unresolved**: `{{ADVISORY_URL}}` and `{{SUPPORT_URL}}` require a GitHub repository context. If the project has no GitHub remote (e.g. a brand-new project not yet pushed), these tokens are left unsubstituted silently. For `always` swatches (e.g. `SECURITY.md`), `alter` will resolve and substitute them on a subsequent run once the repository has a remote. For `first-fit` swatches (e.g. `.github/ISSUE_TEMPLATE/config.yml`), delete the file and re-run `alter --apply`, or use `--force-apply`.
 
-**Repository settings without repo context**: if `config.yml` contains a `repository` section but the project has no GitHub remote (`gh repo view` fails), repository settings are skipped with a warning: "No GitHub repository context found. Repository settings will be applied once a remote is configured." Warning only; does not block swatch or licence processing.
+**Repository settings without repo context**: if `config.yml` contains a `repository` section but the project has no GitHub remote (no repository context found), repository settings are skipped with a warning: "No GitHub repository context found. Repository settings will be applied once a remote is configured." Warning only; does not block swatch or licence processing.
 
-**Repository settings API failure**: if the `gh api --method PATCH` call to apply repository settings fails, `alter` exits with the error from `gh`. Because repository settings are applied first in the execution order, licence and swatch operations are not attempted. If licence fetch fails after repository settings have been applied, the settings are not reverted.
+**Repository settings API failure**: if the `PATCH /repos/{owner}/{repo}` call to apply repository settings fails, `alter` exits with the API error. Because repository settings are applied first in the execution order, licence and swatch operations are not attempted. If licence fetch fails after repository settings have been applied, the settings are not reverted.
 
 **Unrecognised repository setting**: if `config.yml` contains a field in the `repository` section that is not in the supported settings list, `alter` exits with an error identifying the unrecognised field and listing all valid repository setting field names.
 
-**`fit` repository settings query failed**: if `fit` detects a GitHub remote (`gh repo view` succeeds) but the subsequent API call to read repository settings fails (e.g. insufficient permissions, network error), `fit` exits with the error from `gh`. The user can re-run `fit` after resolving the issue, or create `.tailor/config.yml` manually.
+**`fit` repository settings query failed**: if `fit` detects a GitHub remote but the subsequent API call to read repository settings fails (e.g. insufficient permissions, network error), `fit` exits with the API error. The user can re-run `fit` after resolving the issue, or create `.tailor/config.yml` manually.
 
 ## Configuration
 
@@ -448,7 +448,7 @@ swatches/
 
 `.github/FUNDING.yml` has `{{GITHUB_USERNAME}}` substituted automatically. `SECURITY.md` has `{{ADVISORY_URL}}` substituted automatically; if no GitHub repository context exists at `alter` time, the token is left unsubstituted and resolved on a subsequent run. `.github/ISSUE_TEMPLATE/config.yml` has `{{SUPPORT_URL}}` substituted automatically; resolution follows the same mechanism as `{{ADVISORY_URL}}`, constructing `https://github.com/<owner>/<name>/blob/HEAD/SUPPORT.md`. `.github/dependabot.yml` covers the `github-actions` package ecosystem for automated dependency updates of GitHub Actions.
 
-Licences are not embedded - they are fetched at `alter` time via `gh repo license view` and written verbatim to `LICENSE`.
+Licences are not embedded - they are fetched at `alter` time via the GitHub REST API (`GET /licenses/{id}`) and written verbatim to `LICENSE`.
 
 ## GitHub Action
 
@@ -514,10 +514,10 @@ measure:
 ## Implementation Notes
 
 1. **Overwrite detection**: MD5 hash comparison between the embedded swatch content (from the tailor binary) and the on-disk target file. MD5 comparison applies only to `always` swatches; `first-fit` swatches are skipped entirely if the destination exists, with no comparison performed. The on-disk file is overwritten only when this comparison shows a difference. For `always` swatches containing substitution tokens, the MD5 comparison is skipped entirely and the swatch is always overwritten (see the authoritative rule in the `alter` behaviour section). Bypassed with `--force-apply`.
-2. **Interpolation (FUNDING.yml, SECURITY.md, and config.yml)**: Swatches are complete verbatim files with three exceptions. `.github/FUNDING.yml` has `{{GITHUB_USERNAME}}` substituted at `alter` time from `gh api user --jq .login`. `SECURITY.md` has `{{ADVISORY_URL}}` constructed from `gh repo view --json owner,name`; if no repository context exists, the token is left unsubstituted and resolved on a subsequent run. `.github/ISSUE_TEMPLATE/config.yml` has `{{SUPPORT_URL}}` constructed from `gh repo view --json owner,name`, producing `https://github.com/<owner>/<name>/blob/HEAD/SUPPORT.md`; if no repository context exists, the token is left unsubstituted. No per-swatch configuration is required. Licences are fetched via `gh repo license view` and written verbatim - no token substitution is involved.
+2. **Interpolation (FUNDING.yml, SECURITY.md, and config.yml)**: Swatches are complete verbatim files with three exceptions. `.github/FUNDING.yml` has `{{GITHUB_USERNAME}}` substituted at `alter` time from `GET /user`. `SECURITY.md` has `{{ADVISORY_URL}}` constructed from the repository context (owner/name); if no repository context exists, the token is left unsubstituted and resolved on a subsequent run. `.github/ISSUE_TEMPLATE/config.yml` has `{{SUPPORT_URL}}` constructed from the repository context, producing `https://github.com/<owner>/<name>/blob/HEAD/SUPPORT.md`; if no repository context exists, the token is left unsubstituted. No per-swatch configuration is required. Licences are fetched via `GET /licenses/{id}` and written verbatim - no token substitution is involved.
 3. **No versioning**: No swatch versions, always uses swatches from current tailor binary. Upgrading tailor will cause all `always` swatches to be re-evaluated against the new embedded content; files whose swatch content has changed will be overwritten on the next `alter --apply` run.
 4. **No global state**: All state is per-project in `.tailor/config.yml`
 5. **No project registry**: Tailor has no awareness of its consumers. Projects pull from tailor, tailor does not track projects.
-6. **`gh` as sole external dependency**: Tailor requires an authenticated `gh` CLI. All project metadata, user metadata, licence content, and repository settings are resolved via `gh`. Tailor has no dependency on `git`. If `gh` is not available or not authenticated, `fit` and `alter` exit immediately with an error.
+6. **`gh` as sole external dependency**: Tailor requires an authenticated `gh` CLI. All project metadata, user metadata, licence content, and repository settings are resolved via `go-gh` (`github.com/cli/go-gh/v2`), the official Go library for GitHub CLI extensions, which reads `gh`'s stored credentials directly. The `gh` binary is still required for `gh auth login` (establishing credentials) and as a fallback for keyring-based token access. Repository context detection reads git remotes via `go-gh`, so `git` must be present when a GitHub remote exists - but any directory with a GitHub remote already has `git` installed. If `gh` is not available or not authenticated, `fit` and `alter` exit immediately with an error.
 7. **CLI parsing**: [Kong](https://github.com/alecthomas/kong) is used as the command line parser.
-8. **Repository settings via API**: Repository settings are applied via `gh api --method PATCH repos/{owner}/{repo}` with a JSON body constructed from the `repository` section of `config.yml`. Field names map directly to the GitHub REST API without translation. Current settings are read via `gh api repos/{owner}/{repo}` for dry-run comparison. The `alter` execution order is: repository settings, then licence, then swatches.
+8. **Repository settings via API**: Repository settings are applied via `PATCH /repos/{owner}/{repo}` with a JSON body constructed from the `repository` section of `config.yml`. Field names map directly to the GitHub REST API without translation. Current settings are read via `GET /repos/{owner}/{repo}` for dry-run comparison. All API calls use `go-gh`'s pre-authenticated REST client. The `alter` execution order is: repository settings, then licence, then swatches.
