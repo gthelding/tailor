@@ -149,7 +149,9 @@ func TestIntegrationConfigWithAllDiffCategories(t *testing.T) {
 	// - adds some-custom-swatch.yml (config-only)
 	// - changes SECURITY.md alteration from always to first-fit (mode-differs)
 	// All other defaults are present at their default modes.
-	configYAML := "license: MIT\nswatches:\n"
+	var b strings.Builder
+	b.WriteString("license: MIT\n")
+	b.WriteString("swatches:\n")
 	for _, s := range swatch.All() {
 		// Skip .github/dependabot.yml to produce not-configured.
 		if s.Destination == ".github/dependabot.yml" {
@@ -160,16 +162,16 @@ func TestIntegrationConfigWithAllDiffCategories(t *testing.T) {
 		if s.Destination == "SECURITY.md" {
 			alt = "first-fit"
 		}
-		configYAML += "  - source: " + s.Source + "\n"
-		configYAML += "    destination: " + s.Destination + "\n"
-		configYAML += "    alteration: " + alt + "\n"
+		b.WriteString("  - source: " + s.Source + "\n")
+		b.WriteString("    destination: " + s.Destination + "\n")
+		b.WriteString("    alteration: " + alt + "\n")
 	}
 	// Add a custom swatch not in defaults to produce config-only.
-	configYAML += "  - source: some-custom-swatch.yml\n"
-	configYAML += "    destination: some-custom-swatch.yml\n"
-	configYAML += "    alteration: always\n"
+	b.WriteString("  - source: some-custom-swatch.yml\n")
+	b.WriteString("    destination: some-custom-swatch.yml\n")
+	b.WriteString("    alteration: always\n")
 
-	testutil.WriteConfig(t, dir, configYAML)
+	testutil.WriteConfig(t, dir, b.String())
 
 	health := CheckHealth(dir)
 
@@ -219,7 +221,9 @@ func TestIntegrationOutputOrderAndPadding(t *testing.T) {
 
 	// Config with all three diff categories, multiple entries per category
 	// to verify lexicographic sorting.
-	configYAML := "license: MIT\nswatches:\n"
+	var b strings.Builder
+	b.WriteString("license: MIT\n")
+	b.WriteString("swatches:\n")
 	for _, s := range swatch.All() {
 		// Omit two defaults to produce two not-configured entries.
 		if s.Destination == ".github/dependabot.yml" || s.Destination == ".envrc" {
@@ -233,19 +237,19 @@ func TestIntegrationOutputOrderAndPadding(t *testing.T) {
 		if s.Destination == "CODE_OF_CONDUCT.md" {
 			alt = "first-fit"
 		}
-		configYAML += "  - source: " + s.Source + "\n"
-		configYAML += "    destination: " + s.Destination + "\n"
-		configYAML += "    alteration: " + alt + "\n"
+		b.WriteString("  - source: " + s.Source + "\n")
+		b.WriteString("    destination: " + s.Destination + "\n")
+		b.WriteString("    alteration: " + alt + "\n")
 	}
 	// Add two config-only entries.
-	configYAML += "  - source: beta-custom.yml\n"
-	configYAML += "    destination: beta-custom.yml\n"
-	configYAML += "    alteration: always\n"
-	configYAML += "  - source: alpha-custom.yml\n"
-	configYAML += "    destination: alpha-custom.yml\n"
-	configYAML += "    alteration: first-fit\n"
+	b.WriteString("  - source: beta-custom.yml\n")
+	b.WriteString("    destination: beta-custom.yml\n")
+	b.WriteString("    alteration: always\n")
+	b.WriteString("  - source: alpha-custom.yml\n")
+	b.WriteString("    destination: alpha-custom.yml\n")
+	b.WriteString("    alteration: first-fit\n")
 
-	testutil.WriteConfig(t, dir, configYAML)
+	testutil.WriteConfig(t, dir, b.String())
 
 	health := CheckHealth(dir)
 

@@ -23,6 +23,9 @@ const (
 	Present HealthStatus = "present"
 )
 
+// Label returns the status string with a trailing colon, suitable for formatted output.
+func (s HealthStatus) Label() string { return string(s) + ":" }
+
 // HealthResult pairs a destination path with its on-disk status.
 type HealthResult struct {
 	Destination string

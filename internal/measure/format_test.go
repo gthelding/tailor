@@ -1,7 +1,7 @@
 package measure
 
 import (
-	"strings"
+	"fmt"
 	"testing"
 )
 
@@ -89,7 +89,7 @@ func TestFormatOutputPaddingWidth(t *testing.T) {
 
 // formatLabel pads label to the given width, matching the production format logic.
 func formatLabel(label string, width int) string {
-	return label + strings.Repeat(" ", width-len(label))
+	return fmt.Sprintf("%-*s", width, label)
 }
 
 func TestFormatOutputEmptyResults(t *testing.T) {

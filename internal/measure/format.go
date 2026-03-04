@@ -18,7 +18,7 @@ func FormatOutput(health []HealthResult, diff []DiffResult, hasConfig bool) stri
 	var b strings.Builder
 
 	for _, r := range health {
-		fmt.Fprintf(&b, "%-*s%s\n", labelWidth, string(r.Status)+":", r.Destination)
+		fmt.Fprintf(&b, "%-*s%s\n", labelWidth, r.Status.Label(), r.Destination)
 	}
 
 	for _, r := range diff {
@@ -26,7 +26,7 @@ func FormatOutput(health []HealthResult, diff []DiffResult, hasConfig bool) stri
 		if r.Annotation != "" {
 			line += " " + r.Annotation
 		}
-		fmt.Fprintf(&b, "%-*s%s\n", labelWidth, string(r.Category)+":", line)
+		fmt.Fprintf(&b, "%-*s%s\n", labelWidth, r.Category.Label(), line)
 	}
 
 	if !hasConfig {
