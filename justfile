@@ -6,6 +6,10 @@ default:
 alter:
     @tailor alter --apply
 
+# Build tailor binary
+build:
+    @go build -ldflags "-s -w" -o tailor ./cmd/tailor
+
 # Check what tailor would change and measure
 measure:
     @tailor alter

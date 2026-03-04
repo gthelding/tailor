@@ -25,6 +25,7 @@
           default = pkgs.mkShell {
             packages = with pkgs; [
               gh
+              go
               jq
               just
               yq
