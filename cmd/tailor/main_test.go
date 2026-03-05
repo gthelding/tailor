@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -216,6 +219,87 @@ func TestFitNoRepoContextUsesDefaults(t *testing.T) {
 	// Description should be absent when not provided.
 	if strings.Contains(content, "description:") {
 		t.Error("default config should not contain description when not set")
+	}
+}
+
+// setupAlterTest creates a temp directory with a minimal .tailor/config.yml,
+// starts an httptest server that handles the API calls alter.Run makes,
+// sets GH_TOKEN so go-gh creates a client, redirects http.DefaultTransport
+// to the test server, and chdir to the temp directory.
+func setupAlterTest(t *testing.T) string {
+	t.Helper()
+	fakeAuth(t, "gho_test")
+	fakeNoRepo(t)
+
+	dir := t.TempDir()
+	tailorDir := filepath.Join(dir, ".tailor")
+	if err := os.MkdirAll(tailorDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	cfg := "license: none\nswatches: []\n"
+	if err := os.WriteFile(filepath.Join(tailorDir, "config.yml"), []byte(cfg), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/user"):
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"login": "testuser"})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	oldTransport := http.DefaultTransport
+	http.DefaultTransport = &redirectTransport{
+		target:   srv.URL,
+		delegate: oldTransport,
+	}
+	t.Cleanup(func() { http.DefaultTransport = oldTransport })
+
+	t.Setenv("GH_TOKEN", "gho_test")
+
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("Chdir: %v", err)
+	}
+	t.Cleanup(func() { os.Chdir(oldDir) })
+
+	return dir
+}
+
+// redirectTransport sends all requests to the test server, preserving the
+// original path and query but rewriting scheme and host.
+type redirectTransport struct {
+	target   string // test server URL, e.g. "http://127.0.0.1:PORT"
+	delegate http.RoundTripper
+}
+
+func (rt *redirectTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req = req.Clone(req.Context())
+	req.URL.Scheme = "http"
+	req.URL.Host = strings.TrimPrefix(rt.target, "http://")
+	return rt.delegate.RoundTrip(req)
+}
+
+func TestBasteCmdRun(t *testing.T) {
+	setupAlterTest(t)
+	cmd := BasteCmd{}
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("BasteCmd.Run() error: %v", err)
+	}
+}
+
+func TestAlterCmdRunRecut(t *testing.T) {
+	setupAlterTest(t)
+	cmd := AlterCmd{Recut: true}
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("AlterCmd{Recut: true}.Run() error: %v", err)
 	}
 }
 

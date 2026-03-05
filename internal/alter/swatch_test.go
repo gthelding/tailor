@@ -158,12 +158,12 @@ func TestAlwaysSubstitutedSourceAlwaysOverwrites(t *testing.T) {
 	}
 }
 
-func TestForceApplyOverwritesExisting(t *testing.T) {
+func TestRecutOverwritesExisting(t *testing.T) {
 	dir := t.TempDir()
 	writeOnDisk(t, dir, ".gitignore", []byte("old"))
 
 	cfg := newConfig(entry(".gitignore", ".gitignore", swatch.FirstFit))
-	results, err := alter.ProcessSwatches(cfg, dir, alter.ForceApply, &alter.TokenContext{})
+	results, err := alter.ProcessSwatches(cfg, dir, alter.Recut, &alter.TokenContext{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -177,16 +177,16 @@ func TestForceApplyOverwritesExisting(t *testing.T) {
 	}
 	want := mustContent(t, ".gitignore")
 	if string(data) != string(want) {
-		t.Error("force-apply did not overwrite file with embedded content")
+		t.Error("recut did not overwrite file with embedded content")
 	}
 }
 
-func TestForceApplyConfigYmlExempt(t *testing.T) {
+func TestRecutConfigYmlExempt(t *testing.T) {
 	dir := t.TempDir()
 	writeOnDisk(t, dir, ".tailor/config.yml", []byte("existing config"))
 
 	cfg := newConfig(entry(".tailor/config.yml", ".tailor/config.yml", swatch.FirstFit))
-	results, err := alter.ProcessSwatches(cfg, dir, alter.ForceApply, &alter.TokenContext{})
+	results, err := alter.ProcessSwatches(cfg, dir, alter.Recut, &alter.TokenContext{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +199,7 @@ func TestForceApplyConfigYmlExempt(t *testing.T) {
 		t.Fatal(err)
 	}
 	if string(data) != "existing config" {
-		t.Error("force-apply overwrote exempt .tailor/config.yml")
+		t.Error("recut overwrote exempt .tailor/config.yml")
 	}
 }
 
@@ -210,7 +210,7 @@ func TestWouldCopyWhenAbsentRegardlessOfMode(t *testing.T) {
 	}{
 		{"DryRun", alter.DryRun},
 		{"Apply", alter.Apply},
-		{"ForceApply", alter.ForceApply},
+		{"Recut", alter.Recut},
 	}
 
 	for _, m := range modes {

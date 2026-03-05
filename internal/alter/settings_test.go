@@ -234,7 +234,7 @@ func TestProcessRepoSettingsApplyCallsAPI(t *testing.T) {
 	}
 }
 
-func TestProcessRepoSettingsForceApplyCallsAPI(t *testing.T) {
+func TestProcessRepoSettingsRecutCallsAPI(t *testing.T) {
 	fakeRepo(t, "testowner", "testrepo")
 
 	var patchCalled atomic.Int32
@@ -249,12 +249,12 @@ func TestProcessRepoSettingsForceApplyCallsAPI(t *testing.T) {
 		},
 	}
 
-	_, err := alter.ProcessRepoSettings(cfg, alter.ForceApply, client, "testowner", "testrepo", true)
+	_, err := alter.ProcessRepoSettings(cfg, alter.Recut, client, "testowner", "testrepo", true)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if patchCalled.Load() == 0 {
-		t.Error("expected PATCH call on ForceApply, but none received")
+		t.Error("expected PATCH call on Recut, but none received")
 	}
 }
 

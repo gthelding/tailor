@@ -28,11 +28,11 @@ type SwatchResult struct {
 	Category    SwatchCategory
 }
 
-// configDestination is exempt from force-apply overwrite.
+// configDestination is exempt from recut overwrite.
 const configDestination = ".tailor/config.yml"
 
 // ProcessSwatches evaluates each swatch entry in cfg and returns results.
-// When mode is Apply or ForceApply, it writes files to disk.
+// When mode is Apply or Recut, it writes files to disk.
 func ProcessSwatches(cfg *config.Config, dir string, mode ApplyMode, tokens *TokenContext) ([]SwatchResult, error) {
 	results := make([]SwatchResult, 0, len(cfg.Swatches))
 
@@ -60,14 +60,14 @@ func ProcessSwatches(cfg *config.Config, dir string, mode ApplyMode, tokens *Tok
 func processSwatch(entry config.SwatchEntry, content []byte, dest string, mode ApplyMode, tokens *TokenContext) (SwatchResult, error) {
 	exists := fileExists(dest)
 
-	// Force-apply exemption: .tailor/config.yml behaves as first-fit.
+	// Recut exemption: .tailor/config.yml behaves as first-fit.
 	// Pass DryRun to suppress writes; config.yml is never overwritten.
-	if mode == ForceApply && entry.Destination == configDestination {
+	if mode == Recut && entry.Destination == configDestination {
 		return processFirstFit(entry, content, dest, exists, DryRun)
 	}
 
-	if mode == ForceApply {
-		return processForceApply(entry, content, dest, exists)
+	if mode == Recut {
+		return processRecut(entry, content, dest, exists)
 	}
 
 	switch entry.Alteration {
@@ -129,7 +129,7 @@ func processAlways(entry config.SwatchEntry, content []byte, dest string, exists
 	return SwatchResult{Destination: entry.Destination, Category: WouldOverwrite}, nil
 }
 
-func processForceApply(entry config.SwatchEntry, content []byte, dest string, exists bool) (SwatchResult, error) {
+func processRecut(entry config.SwatchEntry, content []byte, dest string, exists bool) (SwatchResult, error) {
 	category := WouldOverwrite
 	if !exists {
 		category = WouldCopy

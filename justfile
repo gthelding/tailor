@@ -4,7 +4,7 @@ default:
 
 # Alter tailor swatches
 alter:
-    @tailor alter --apply
+    @tailor alter
 
 # Build tailor binary
 build:
@@ -16,5 +16,5 @@ test:
 
 # Check what tailor would change and measure
 measure:
-    @tailor alter
+    @tailor baste
     @tailor measure

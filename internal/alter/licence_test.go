@@ -134,7 +134,7 @@ func TestProcessLicenceSkippedWhenPresent(t *testing.T) {
 	}
 }
 
-func TestProcessLicenceExemptFromForceApply(t *testing.T) {
+func TestProcessLicenceExemptFromRecut(t *testing.T) {
 	dir := t.TempDir()
 	existing := []byte("Original licence")
 	writeOnDisk(t, dir, "LICENSE", existing)
@@ -144,7 +144,7 @@ func TestProcessLicenceExemptFromForceApply(t *testing.T) {
 	client := newTestClient(t, server)
 
 	cfg := &config.Config{License: "mit"}
-	result, err := alter.ProcessLicence(cfg, dir, alter.ForceApply, client)
+	result, err := alter.ProcessLicence(cfg, dir, alter.Recut, client)
 	if err != nil {
 		t.Fatalf("ProcessLicence() error: %v", err)
 	}
@@ -160,7 +160,7 @@ func TestProcessLicenceExemptFromForceApply(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(data, existing) {
-		t.Error("ForceApply overwrote exempt LICENSE file")
+		t.Error("Recut overwrote exempt LICENSE file")
 	}
 }
 

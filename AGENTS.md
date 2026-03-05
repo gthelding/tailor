@@ -55,15 +55,15 @@ tailor/
 ## Key implementation details
 
 - Swatches are embedded at build time via `//go:embed swatches/*`
-- Three commands: `fit` (bootstrap), `alter` (apply), `measure` (inspect)
-- `fit` and `alter` require `gh auth status` at startup; `measure` does not
+- Five commands: `fit` (bootstrap), `alter` (apply), `baste` (preview), `measure` (inspect), `docket` (inspect)
+- `fit`, `alter`, and `baste` require `gh auth status` at startup; `measure` and `docket` do not
 - `alter` execution order: repository settings, then licence, then swatches
-- MD5 comparison for `always` swatches; substituted swatches (`.github/FUNDING.yml`, `SECURITY.md`, `.github/ISSUE_TEMPLATE/config.yml`) skip MD5 and always overwrite
-- `--force-apply` overwrites everything except `LICENSE` and `.tailor/config.yml`
-- Token substitution: `{{GITHUB_USERNAME}}`, `{{ADVISORY_URL}}`, `{{SUPPORT_URL}}`
-- Licences fetched via `gh repo license view`, not embedded
+- MD5 comparison for `always` swatches; substituted swatches (`.github/FUNDING.yml`, `SECURITY.md`, `.github/ISSUE_TEMPLATE/config.yml`, `.tailor/config.yml`) skip MD5 and always overwrite
+- `--recut` overwrites everything except `LICENSE` and `.tailor/config.yml`
+- Token substitution: `{{GITHUB_USERNAME}}`, `{{ADVISORY_URL}}`, `{{SUPPORT_URL}}`, `{{HOMEPAGE_URL}}`
+- Licences fetched via GitHub REST API (`GET /licenses/{id}`), not embedded
 - `private_vulnerability_reporting_enabled` uses a separate API endpoint (`PUT`/`DELETE`)
-- Dry-run output uses fixed-width category labels (29 chars for `alter`, 16 chars for `measure`)
+- Dry-run output uses fixed-width category labels (29 chars for `baste`, 16 chars for `measure`)
 
 ## Commit guidelines
 

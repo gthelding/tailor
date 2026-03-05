@@ -14,11 +14,11 @@ type ApplyMode int
 const (
 	DryRun     ApplyMode = iota // preview only
 	Apply                       // write if file is absent or alteration permits
-	ForceApply                  // overwrite unconditionally
+	Recut                       // overwrite unconditionally
 )
 
 // ShouldWrite reports whether the mode permits writing to disk.
-func (m ApplyMode) ShouldWrite() bool { return m == Apply || m == ForceApply }
+func (m ApplyMode) ShouldWrite() bool { return m == Apply || m == Recut }
 
 // Run executes the alter command. It validates the config, applies
 // repository settings, fetches the licence, and processes swatches.

@@ -19,8 +19,9 @@ var version = "dev"
 var cli struct {
 	Version kong.VersionFlag `help:"Show version."`
 	Fit     FitCmd           `cmd:"" help:"Create a new project with default configuration."`
-	Measure MeasureCmd       `cmd:"" help:"Assess project health files and configuration alignment."`
 	Alter   AlterCmd         `cmd:"" help:"Apply swatch templates to the current project."`
+	Baste   BasteCmd         `cmd:"" help:"Preview what alter would do without making any changes."`
+	Measure MeasureCmd       `cmd:"" help:"Assess project health files and configuration alignment."`
 }
 
 // FitCmd creates a new project directory with a default .tailor/config.yml.
@@ -79,8 +80,7 @@ func (f *FitCmd) Run() error {
 
 // AlterCmd applies swatch templates to the current project.
 type AlterCmd struct {
-	Apply      bool `help:"Apply changes." xor:"mode"`
-	ForceApply bool `help:"Apply and overwrite regardless of mode or existence." name:"force-apply" xor:"mode"`
+	Recut bool `help:"Overwrite all files regardless of mode or existence." name:"recut"`
 }
 
 // Run executes the alter command.
@@ -99,14 +99,34 @@ func (a *AlterCmd) Run() error {
 		return fmt.Errorf(".tailor/config.yml is missing or malformed. Run 'tailor fit <path>' to create a valid configuration, or edit .tailor/config.yml directly to correct it")
 	}
 
-	mode := alter.DryRun
-	if a.ForceApply {
-		mode = alter.ForceApply
-	} else if a.Apply {
-		mode = alter.Apply
+	mode := alter.Apply
+	if a.Recut {
+		mode = alter.Recut
 	}
 
 	return alter.Run(cfg, dir, mode, nil)
+}
+
+// BasteCmd previews what alter would do without making any changes.
+type BasteCmd struct{}
+
+// Run executes the baste command.
+func (b *BasteCmd) Run() error {
+	if err := gh.CheckAuth(); err != nil {
+		return err
+	}
+
+	dir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("getting working directory: %w", err)
+	}
+
+	cfg, err := config.Load(dir)
+	if err != nil {
+		return fmt.Errorf(".tailor/config.yml is missing or malformed. Run 'tailor fit <path>' to create a valid configuration, or edit .tailor/config.yml directly to correct it")
+	}
+
+	return alter.Run(cfg, dir, alter.DryRun, nil)
 }
 
 // MeasureCmd checks community health files and, when a config is present,

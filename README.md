@@ -6,7 +6,7 @@ Bespoke project templates for GitHub repositories. Tailor fits new projects with
 # Fit a new project
 tailor fit ./my-project
 cd my-project
-tailor alter --apply
+tailor alter
 ```
 
 ## Prerequisites
@@ -24,10 +24,10 @@ gh auth login
 ```bash
 tailor fit ./my-project
 cd my-project
-tailor alter --apply
+tailor alter
 ```
 
-`fit` creates the project directory with a `.tailor/config.yml` containing the full default swatch set. `alter --apply` copies the swatch files and applies repository settings. The default licence is MIT.
+`fit` creates the project directory with a `.tailor/config.yml` containing the full default swatch set. `alter` copies the swatch files and applies repository settings. The default licence is MIT.
 
 ```bash
 # Choose a different licence
@@ -46,24 +46,25 @@ tailor fit ./my-project --description="My awesome project"
 cd existing-project
 tailor measure                # See what's missing
 tailor fit .                  # Create .tailor/config.yml
-tailor alter --apply          # Apply swatches and settings
+tailor alter                  # Apply swatches and settings
 ```
 
 `measure` checks which community health files are present or missing. `fit .` works in an existing directory and creates the configuration without error. If the project has a GitHub remote, `fit` reads the live repository settings so it does not change anything already configured.
 
-Edit `.tailor/config.yml` directly to add or remove swatches or change alteration modes, then run `alter --apply`.
+Edit `.tailor/config.yml` directly to add or remove swatches or change alteration modes, then run `alter`.
 
 ## Swatches
 
-Swatches are complete template files embedded in the tailor binary. They are copied verbatim to your project, with three exceptions where tokens are substituted at `alter` time:
+Swatches are complete template files embedded in the tailor binary. They are copied verbatim to your project, with four exceptions where tokens are substituted at `alter` time:
 
 | File | Token | Resolved from |
 |------|-------|---------------|
 | `.github/FUNDING.yml` | `{{GITHUB_USERNAME}}` | `gh api user` |
 | `SECURITY.md` | `{{ADVISORY_URL}}` | `gh repo view` |
 | `.github/ISSUE_TEMPLATE/config.yml` | `{{SUPPORT_URL}}` | `gh repo view` |
+| `.tailor/config.yml` | `{{HOMEPAGE_URL}}` | `.tailor/config.yml` |
 
-Licences are not swatches. They are fetched via `gh repo license view` at `alter` time and written to `LICENSE`.
+Licences are not swatches. They are fetched via the GitHub REST API (`GET /licenses/{id}`) at `alter` time and written to `LICENSE`.
 
 ### Default swatch set
 
@@ -137,7 +138,7 @@ Remove a swatch entry from `config.yml` to stop tailor managing that file. Add e
 
 ## Repository Settings
 
-The `repository` section manages GitHub repository settings declaratively. Field names match the [GitHub REST API](https://docs.github.com/en/rest/repos/repos#update-a-repository) exactly (snake_case). Settings are applied as a single API call on every `alter --apply` run.
+The `repository` section manages GitHub repository settings declaratively. Field names match the [GitHub REST API](https://docs.github.com/en/rest/repos/repos#update-a-repository) exactly (snake_case). Settings are applied as a single API call on every `alter` run.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -164,7 +165,7 @@ Omit the `repository` section entirely to skip repository settings management.
 
 ## Automated Maintenance
 
-The `.github/workflows/tailor.yml` swatch delivers a GitHub Actions workflow that runs `tailor alter --apply` weekly and opens a pull request when swatch content changes.
+The `.github/workflows/tailor.yml` swatch delivers a GitHub Actions workflow that runs `tailor alter` weekly and opens a pull request when swatch content changes.
 
 ```yaml
 name: Tailor
@@ -185,7 +186,7 @@ jobs:
         uses: wimpysworld/tailor-action@v1
 
       - name: Alter swatches
-        run: tailor alter --apply
+        run: tailor alter
 
       - name: Create PR
         uses: peter-evans/create-pull-request@v6
@@ -220,12 +221,21 @@ Exits with an error if `.tailor/config.yml` already exists at `<path>`.
 Reads `.tailor/config.yml` in the current directory and applies swatches, licence, and repository settings.
 
 ```bash
-tailor alter                # Dry-run (default)
-tailor alter --apply        # Apply changes
-tailor alter --force-apply  # Overwrite all files regardless of mode
+tailor alter              # Apply changes
+tailor alter --recut      # Apply and overwrite regardless of mode
 ```
 
-Dry-run output shows what would change:
+Execution order: repository settings, then licence, then swatches.
+
+`--recut` overwrites all files including `first-fit` swatches. Two files are exempt: `LICENSE` (fetched content, not an embedded swatch) and `.tailor/config.yml` (overwriting it would destroy the project configuration).
+
+### `baste`
+
+Previews what `alter` would do without making any changes.
+
+```bash
+tailor baste
+```
 
 ```
 would set:                   repository.has_wiki = false
@@ -235,9 +245,29 @@ no change:                   .github/workflows/tailor.yml
 skipped (first-fit, exists): justfile
 ```
 
-Execution order: repository settings, then licence, then swatches.
+### `docket`
 
-`--force-apply` overwrites all files including `first-fit` swatches. Two files are exempt: `LICENSE` (fetched content, not an embedded swatch) and `.tailor/config.yml` (overwriting it would destroy the project configuration).
+Displays the current GitHub authentication state and repository context.
+
+```bash
+tailor docket
+```
+
+**Authenticated, with repository context:**
+
+```
+user:           octocat
+repository:     octocat/my-project
+auth:           authenticated
+```
+
+**Authenticated, without repository context:**
+
+```
+user:           octocat
+repository:     (none)
+auth:           authenticated
+```
 
 ### `measure`
 

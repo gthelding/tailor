@@ -1296,12 +1296,12 @@ swatches:
 }
 
 // ---------------------------------------------------------------------------
-// Phase 6.4 - Force-apply integration tests
+// Phase 6.4 - Recut integration tests
 // ---------------------------------------------------------------------------
 
-// TestAlterRunForceApplyOverwritesFirstFitSwatches verifies that force-apply
+// TestAlterRunRecutOverwritesFirstFitSwatches verifies that recut
 // overwrites pre-existing first-fit swatch files with embedded content.
-func TestAlterRunForceApplyOverwritesFirstFitSwatches(t *testing.T) {
+func TestAlterRunRecutOverwritesFirstFitSwatches(t *testing.T) {
 	configYAML := `license: none
 swatches:
   - source: .gitignore
@@ -1319,7 +1319,7 @@ swatches:
 	writeOnDisk(t, tc.Dir, "CODE_OF_CONDUCT.md", []byte("custom conduct"))
 
 	cfg := loadTestConfig(t, tc.Dir)
-	_ = captureAlterRun(t, cfg, tc.Dir, alter.ForceApply, tc.Client)
+	_ = captureAlterRun(t, cfg, tc.Dir, alter.Recut, tc.Client)
 
 	// Both files must now contain embedded swatch content, not custom content.
 	for _, src := range []string{".gitignore", "CODE_OF_CONDUCT.md"} {
@@ -1329,14 +1329,14 @@ swatches:
 		}
 		want := mustContent(t, src)
 		if !bytes.Equal(got, want) {
-			t.Errorf("%s still contains custom content after force-apply (got %d bytes, want %d bytes)", src, len(got), len(want))
+			t.Errorf("%s still contains custom content after recut (got %d bytes, want %d bytes)", src, len(got), len(want))
 		}
 	}
 }
 
-// TestAlterRunForceApplyDoesNotOverwriteLicence verifies that force-apply
+// TestAlterRunRecutDoesNotOverwriteLicence verifies that recut
 // does not overwrite an existing LICENSE file (licence is exempt).
-func TestAlterRunForceApplyDoesNotOverwriteLicence(t *testing.T) {
+func TestAlterRunRecutDoesNotOverwriteLicence(t *testing.T) {
 	configYAML := `license: mit
 swatches:
   - source: .gitignore
@@ -1350,20 +1350,20 @@ swatches:
 	writeOnDisk(t, tc.Dir, "LICENSE", []byte("My Original Licence"))
 
 	cfg := loadTestConfig(t, tc.Dir)
-	_ = captureAlterRun(t, cfg, tc.Dir, alter.ForceApply, tc.Client)
+	_ = captureAlterRun(t, cfg, tc.Dir, alter.Recut, tc.Client)
 
 	data, err := os.ReadFile(filepath.Join(tc.Dir, "LICENSE"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(data) != "My Original Licence" {
-		t.Errorf("force-apply overwrote LICENSE; got %q", string(data))
+		t.Errorf("recut overwrote LICENSE; got %q", string(data))
 	}
 }
 
-// TestAlterRunForceApplyDoesNotOverwriteConfig verifies that force-apply
+// TestAlterRunRecutDoesNotOverwriteConfig verifies that recut
 // does not overwrite .tailor/config.yml (config is exempt).
-func TestAlterRunForceApplyDoesNotOverwriteConfig(t *testing.T) {
+func TestAlterRunRecutDoesNotOverwriteConfig(t *testing.T) {
 	configYAML := `license: none
 swatches:
   - source: .tailor/config.yml
@@ -1380,21 +1380,21 @@ swatches:
 	}
 
 	cfg := loadTestConfig(t, tc.Dir)
-	_ = captureAlterRun(t, cfg, tc.Dir, alter.ForceApply, tc.Client)
+	_ = captureAlterRun(t, cfg, tc.Dir, alter.Recut, tc.Client)
 
 	data, err := os.ReadFile(filepath.Join(tc.Dir, ".tailor/config.yml"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(data, originalCfg) {
-		t.Error("force-apply overwrote .tailor/config.yml")
+		t.Error("recut overwrote .tailor/config.yml")
 	}
 }
 
-// TestAlterRunForceApplyResolvesTokens verifies that force-apply runs full
+// TestAlterRunRecutResolvesTokens verifies that recut runs full
 // token resolution on substituted swatches. Pre-writes FUNDING.yml with stale
 // content, then checks it contains the freshly resolved username.
-func TestAlterRunForceApplyResolvesTokens(t *testing.T) {
+func TestAlterRunRecutResolvesTokens(t *testing.T) {
 	configYAML := `license: none
 swatches:
   - source: .github/FUNDING.yml
@@ -1410,14 +1410,14 @@ swatches:
 	writeOnDisk(t, tc.Dir, ".github/FUNDING.yml", []byte("github: staleuser"))
 
 	cfg := loadTestConfig(t, tc.Dir)
-	_ = captureAlterRun(t, cfg, tc.Dir, alter.ForceApply, tc.Client)
+	_ = captureAlterRun(t, cfg, tc.Dir, alter.Recut, tc.Client)
 
 	data, err := os.ReadFile(filepath.Join(tc.Dir, ".github/FUNDING.yml"))
 	if err != nil {
 		t.Fatalf("FUNDING.yml not found: %v", err)
 	}
 	if strings.Contains(string(data), "staleuser") {
-		t.Error("FUNDING.yml still contains stale username after force-apply")
+		t.Error("FUNDING.yml still contains stale username after recut")
 	}
 	if !strings.Contains(string(data), "freshuser") {
 		t.Error("FUNDING.yml does not contain freshly resolved username 'freshuser'")

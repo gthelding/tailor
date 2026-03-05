@@ -4,9 +4,9 @@ default:
 
 # Alter tailor swatches
 alter:
-    @tailor alter --apply
+    @tailor alter
 
 # Check what tailor would change and measure
 measure:
-    @tailor alter
+    @tailor baste
     @tailor measure
