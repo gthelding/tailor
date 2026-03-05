@@ -1,6 +1,11 @@
 package alter
 
-import "github.com/wimpysworld/tailor/internal/config"
+import (
+	"fmt"
+
+	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/wimpysworld/tailor/internal/config"
+)
 
 // ApplyMode controls whether changes are written to disk.
 type ApplyMode int
@@ -23,5 +28,37 @@ func Run(cfg *config.Config, dir string, mode ApplyMode) error {
 	if err := config.ValidateRepoSettings(cfg); err != nil {
 		return err
 	}
+
+	client, err := api.DefaultRESTClient()
+	if err != nil {
+		return fmt.Errorf("creating GitHub API client: %w", err)
+	}
+
+	// Phase 4 (repository settings) not yet implemented; pass nil.
+	var repoResults []RepoSettingResult
+
+	// Licence processing.
+	licenceResult, err := ProcessLicence(cfg, dir, mode, client)
+	if err != nil {
+		return err
+	}
+
+	// Swatch processing with placeholder token context.
+	tokens := &TokenContext{}
+	swatchResults, err := ProcessSwatches(cfg, dir, mode, tokens)
+	if err != nil {
+		return err
+	}
+
+	// Merge licence result into swatch results for unified output.
+	if licenceResult != nil {
+		swatchResults = append(swatchResults, *licenceResult)
+	}
+
+	output := FormatOutput(repoResults, swatchResults)
+	if output != "" {
+		fmt.Print(output)
+	}
+
 	return nil
 }
