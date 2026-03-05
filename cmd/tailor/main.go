@@ -85,26 +85,11 @@ type AlterCmd struct {
 
 // Run executes the alter command.
 func (a *AlterCmd) Run() error {
-	if err := gh.CheckAuth(); err != nil {
-		return err
-	}
-
-	dir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("getting working directory: %w", err)
-	}
-
-	cfg, err := config.Load(dir)
-	if err != nil {
-		return fmt.Errorf(".tailor/config.yml is missing or malformed. Run 'tailor fit <path>' to create a valid configuration, or edit .tailor/config.yml directly to correct it")
-	}
-
 	mode := alter.Apply
 	if a.Recut {
 		mode = alter.Recut
 	}
-
-	return alter.Run(cfg, dir, mode, nil)
+	return runAlter(mode)
 }
 
 // BasteCmd previews what alter would do without making any changes.
@@ -112,6 +97,12 @@ type BasteCmd struct{}
 
 // Run executes the baste command.
 func (b *BasteCmd) Run() error {
+	return runAlter(alter.DryRun)
+}
+
+// runAlter performs auth check, resolves the working directory, loads the
+// tailor config, and runs alter with the given mode.
+func runAlter(mode alter.ApplyMode) error {
 	if err := gh.CheckAuth(); err != nil {
 		return err
 	}
@@ -126,7 +117,7 @@ func (b *BasteCmd) Run() error {
 		return fmt.Errorf(".tailor/config.yml is missing or malformed. Run 'tailor fit <path>' to create a valid configuration, or edit .tailor/config.yml directly to correct it")
 	}
 
-	return alter.Run(cfg, dir, alter.DryRun, nil)
+	return alter.Run(cfg, dir, mode, nil)
 }
 
 // MeasureCmd checks community health files and, when a config is present,

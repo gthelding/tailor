@@ -56,7 +56,10 @@ func ProcessSwatches(cfg *config.Config, dir string, mode ApplyMode, tokens *Tok
 }
 
 // processSwatch determines the category for a single swatch and writes
-// the file when the mode permits.
+// the file when the mode permits. Token substitution occurs upstream in
+// ProcessSwatches before this function is called. The tokens parameter is
+// passed through only for processAlways, which uses it to skip the MD5
+// comparison when a source has active substitutions.
 func processSwatch(entry config.SwatchEntry, content []byte, dest string, mode ApplyMode, tokens *TokenContext) (SwatchResult, error) {
 	exists := fileExists(dest)
 
@@ -67,7 +70,7 @@ func processSwatch(entry config.SwatchEntry, content []byte, dest string, mode A
 	}
 
 	if mode == Recut {
-		return processRecut(entry, content, dest, exists)
+		return processRecut(entry, content, dest, exists, mode)
 	}
 
 	switch entry.Alteration {
@@ -129,13 +132,15 @@ func processAlways(entry config.SwatchEntry, content []byte, dest string, exists
 	return SwatchResult{Destination: entry.Destination, Category: WouldOverwrite}, nil
 }
 
-func processRecut(entry config.SwatchEntry, content []byte, dest string, exists bool) (SwatchResult, error) {
+func processRecut(entry config.SwatchEntry, content []byte, dest string, exists bool, mode ApplyMode) (SwatchResult, error) {
 	category := WouldOverwrite
 	if !exists {
 		category = WouldCopy
 	}
-	if err := writeFile(dest, content); err != nil {
-		return SwatchResult{}, err
+	if mode.ShouldWrite() {
+		if err := writeFile(dest, content); err != nil {
+			return SwatchResult{}, err
+		}
 	}
 	return SwatchResult{Destination: entry.Destination, Category: category}, nil
 }
