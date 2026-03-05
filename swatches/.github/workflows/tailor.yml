@@ -10,7 +10,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup tailor
         uses: wimpysworld/tailor-action@v1
@@ -19,7 +19,7 @@ jobs:
         run: tailor alter --apply
 
       - name: Create PR
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           branch: tailor-alter
           title: "chore: alter tailor swatches"
