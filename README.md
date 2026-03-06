@@ -124,7 +124,7 @@ Each swatch entry has three fields:
 | `destination` | Output path relative to the project root |
 | `alteration` | `always`, `first-fit`, `triggered`, or `never` |
 
-Set `alteration: never` to stop tailor managing a file. The entry stays visible in `config.yml` and prevents `alter --recut` from re-adding it. Add entries to include additional swatches.
+Set `alteration: never` to stop tailor managing a file. The entry stays visible in `config.yml` and prevents `alter --recut` from re-adding it.
 
 ## Repository Settings
 
