@@ -88,6 +88,8 @@ nfpms:
 homebrew_casks:
   - ids:
       - compressed
+    binaries:
+      - tailor
     repository:
       owner: wimpysworld
       name: homebrew-tap
