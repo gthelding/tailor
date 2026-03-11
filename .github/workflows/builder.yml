@@ -255,8 +255,8 @@ jobs:
           git tag -fa "${major}" -m "Update ${major} tag to ${tag}"
           git push origin "${major}" --force
 
-  update-nix-packages:
-    name: Update nix-packages 📦
+  update-nix-lock:
+    name: Update lock ❄️
     if: ${{ github.event_name == 'release' && !github.event.release.prerelease }}
     runs-on: ubuntu-latest
     permissions:
